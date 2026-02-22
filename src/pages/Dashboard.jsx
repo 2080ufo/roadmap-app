@@ -3,6 +3,7 @@ import api from '../lib/api'
 import RoadmapBar from '../components/RoadmapBar'
 import KanbanBoard from '../components/KanbanBoard'
 import CreateTaskModal from '../components/CreateTaskModal'
+import WeeklyCounter from '../components/WeeklyCounter'
 
 export default function Dashboard() {
   const [roadmap, setRoadmap] = useState(null)
@@ -160,7 +161,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto px-6 py-4">
+      <div className="max-w-7xl mx-auto px-6 py-4 pb-20">
         <KanbanBoard
           tasks={filteredTasks}
           onDeleteTask={deleteTask}
@@ -169,6 +170,8 @@ export default function Dashboard() {
           onOpenCreateModal={openCreateModal}
         />
       </div>
+
+      <WeeklyCounter tasks={tasks} />
 
       <CreateTaskModal
         isOpen={modalOpen}
