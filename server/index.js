@@ -258,7 +258,49 @@ app.put('/api/tasks/:id/move', authMiddleware, async (req, res) => {
 app.post('/api/webhooks/wip-signal', authMiddleware, async (req, res) => {
   const { task_id, title } = req.body
   console.log(`[WIP SIGNAL] Task "${title}" (${task_id}) moved to WIP - ready for implementation`)
+  try {
+    await pool.query(
+      'INSERT INTO wip_signals (task_id, user_id, title) VALUES ($1, $2, $3)',
+      [task_id, req.user.id, title]
+    )
+  } catch (e) { console.error('Failed to store WIP signal:', e.message) }
   res.json({ ok: true, message: 'WIP signal received' })
+})
+
+// Move task to done
+app.put('/api/tasks/:id/done', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "UPDATE tasks SET column_name = 'done', completed = TRUE, completed_at = NOW() WHERE id = $1 RETURNING *",
+      [req.params.id]
+    )
+    if (!rows[0]) return res.status(404).json({ error: 'Not found' })
+    res.json(rows[0])
+  } catch {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// Get pending (unacknowledged) WIP signals
+app.get('/api/webhooks/wip-pending', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM wip_signals WHERE acknowledged = FALSE ORDER BY created_at ASC'
+    )
+    res.json(rows)
+  } catch {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// Acknowledge a WIP signal (mark as processed)
+app.put('/api/webhooks/wip-pending/:id/ack', authMiddleware, async (req, res) => {
+  try {
+    await pool.query('UPDATE wip_signals SET acknowledged = TRUE WHERE id = $1', [req.params.id])
+    res.json({ ok: true })
+  } catch {
+    res.status(500).json({ error: 'Server error' })
+  }
 })
 
 // Serve static in production

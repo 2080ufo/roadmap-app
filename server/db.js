@@ -52,6 +52,18 @@ export async function initDB() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
   `)
+  // WIP signal queue
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS wip_signals (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
+      user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      acknowledged BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `)
+
   // Migrate: add column_name and position if missing
   await pool.query(`
     DO $$ BEGIN
