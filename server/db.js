@@ -64,6 +64,24 @@ export async function initDB() {
     );
   `)
 
+  // Tags system
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS tags (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      color TEXT NOT NULL DEFAULT '#3b82f6',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(user_id, name)
+    );
+
+    CREATE TABLE IF NOT EXISTS task_tags (
+      task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
+      tag_id UUID REFERENCES tags(id) ON DELETE CASCADE,
+      PRIMARY KEY (task_id, tag_id)
+    );
+  `)
+
   // Migrate: add column_name and position if missing
   await pool.query(`
     DO $$ BEGIN

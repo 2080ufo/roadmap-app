@@ -2,31 +2,35 @@ import { useEffect, useState } from 'react'
 import api from '../lib/api'
 import RoadmapBar from '../components/RoadmapBar'
 import KanbanBoard from '../components/KanbanBoard'
+import CreateTaskModal from '../components/CreateTaskModal'
 
 export default function Dashboard() {
   const [roadmap, setRoadmap] = useState(null)
   const [milestones, setMilestones] = useState([])
   const [tasks, setTasks] = useState([])
+  const [tags, setTags] = useState([])
+  const [activeFilter, setActiveFilter] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [modalColumn, setModalColumn] = useState('ideas')
 
   useEffect(() => { init() }, [])
 
   const init = async () => {
     try {
-      // Get or create default roadmap
       let roadmaps = await api.get('/api/roadmaps')
       let rm = roadmaps[0]
-      if (!rm) {
-        rm = await api.post('/api/roadmaps', { title: 'Product Roadmap' })
-      }
+      if (!rm) rm = await api.post('/api/roadmaps', { title: 'Product Roadmap' })
       setRoadmap(rm)
 
-      const [ms, ts] = await Promise.all([
+      const [ms, ts, tg] = await Promise.all([
         api.get(`/api/milestones?roadmap_id=${rm.id}`),
-        api.get('/api/tasks')
+        api.get('/api/tasks'),
+        api.get('/api/tags')
       ])
       setMilestones(ms || [])
       setTasks(ts || [])
+      setTags(tg || [])
     } catch (e) { console.error('Init failed:', e) }
     setLoading(false)
   }
@@ -50,13 +54,26 @@ export default function Dashboard() {
     setMilestones(milestones.filter(m => m.id !== id))
   }
 
+  // Tag actions
+  const createTag = async (name, color) => {
+    try {
+      const tag = await api.post('/api/tags', { name, color })
+      setTags([...tags, tag])
+      return tag
+    } catch { return null }
+  }
+
   // Task actions
-  const addTask = async (columnName, title) => {
+  const openCreateModal = (columnId) => {
+    setModalColumn(columnId)
+    setModalOpen(true)
+  }
+
+  const addTask = async (columnName, title, tagIds) => {
     const colTasks = tasks.filter(t => t.column_name === columnName)
-    const data = await api.post('/api/tasks', { title, column_name: columnName, position: colTasks.length })
+    const data = await api.post('/api/tasks', { title, column_name: columnName, position: colTasks.length, tag_ids: tagIds })
     if (data) {
       setTasks([...tasks, data])
-      // Signal if added directly to WIP
       if (columnName === 'wip') {
         api.post('/api/webhooks/wip-signal', { task_id: data.id, title }).catch(() => {})
       }
@@ -71,19 +88,14 @@ export default function Dashboard() {
   const moveTask = async (taskId, newColumn) => {
     const task = tasks.find(t => t.id === taskId)
     if (!task || task.column_name === newColumn) return
-
     const oldColumn = task.column_name
-    // Optimistic update
     setTasks(tasks.map(t => t.id === taskId ? { ...t, column_name: newColumn } : t))
-
     try {
       await api.put(`/api/tasks/${taskId}/move`, { column_name: newColumn })
-      // Signal when moved to WIP
       if (newColumn === 'wip' && oldColumn !== 'wip') {
         api.post('/api/webhooks/wip-signal', { task_id: taskId, title: task.title }).catch(() => {})
       }
     } catch {
-      // Revert on failure
       setTasks(tasks.map(t => t.id === taskId ? { ...t, column_name: oldColumn } : t))
     }
   }
@@ -94,6 +106,11 @@ export default function Dashboard() {
       return [...others, ...newOrder.map((t, i) => ({ ...t, position: i }))]
     })
   }
+
+  // Filter tasks by tag
+  const filteredTasks = activeFilter
+    ? tasks.filter(t => t.tags?.some(tag => tag.id === activeFilter))
+    : tasks
 
   if (loading) {
     return <div className="flex items-center justify-center h-64"><div className="w-5 h-5 border-2 border-accent-blue border-t-transparent rounded-full animate-spin" /></div>
@@ -107,15 +124,60 @@ export default function Dashboard() {
         onUpdate={updateMilestone}
         onDelete={deleteMilestone}
       />
-      <div className="max-w-7xl mx-auto px-6 py-6">
+
+      {/* Tag filter bar */}
+      {tags.length > 0 && (
+        <div className="max-w-7xl mx-auto px-6 pt-4">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-text-muted">Filter:</span>
+            <button
+              onClick={() => setActiveFilter(null)}
+              className={`px-2.5 py-1 rounded-full text-xs transition-all ${
+                !activeFilter ? 'bg-accent-blue/20 text-accent-blue border border-accent-blue/30' : 'bg-surface-700 text-text-muted border border-surface-600 hover:border-text-muted/30'
+              }`}
+            >
+              All
+            </button>
+            {tags.map(tag => (
+              <button
+                key={tag.id}
+                onClick={() => setActiveFilter(activeFilter === tag.id ? null : tag.id)}
+                className={`px-2.5 py-1 rounded-full text-xs transition-all ${
+                  activeFilter === tag.id
+                    ? 'border'
+                    : 'border opacity-70 hover:opacity-100'
+                }`}
+                style={{
+                  backgroundColor: tag.color + (activeFilter === tag.id ? '30' : '15'),
+                  color: tag.color,
+                  borderColor: tag.color + (activeFilter === tag.id ? '60' : '30')
+                }}
+              >
+                {tag.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="max-w-7xl mx-auto px-6 py-4">
         <KanbanBoard
-          tasks={tasks}
-          onAddTask={addTask}
+          tasks={filteredTasks}
           onDeleteTask={deleteTask}
           onMoveTask={moveTask}
           onReorderTasks={reorderTasks}
+          onOpenCreateModal={openCreateModal}
         />
       </div>
+
+      <CreateTaskModal
+        isOpen={modalOpen}
+        columnId={modalColumn}
+        tags={tags}
+        onClose={() => setModalOpen(false)}
+        onSubmit={addTask}
+        onCreateTag={createTag}
+      />
     </>
   )
 }

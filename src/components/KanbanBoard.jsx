@@ -6,7 +6,7 @@ import KanbanCard from './KanbanCard'
 
 const COLUMNS = ['ideas', 'wip', 'done']
 
-export default function KanbanBoard({ tasks, onAddTask, onDeleteTask, onMoveTask, onReorderTasks }) {
+export default function KanbanBoard({ tasks, onDeleteTask, onMoveTask, onReorderTasks, onOpenCreateModal }) {
   const [activeTask, setActiveTask] = useState(null)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
@@ -78,8 +78,8 @@ export default function KanbanBoard({ tasks, onAddTask, onDeleteTask, onMoveTask
             key={col}
             columnId={col}
             tasks={tasksByColumn[col]}
-            onAddTask={onAddTask}
             onDeleteTask={onDeleteTask}
+            onOpenCreateModal={onOpenCreateModal}
           />
         ))}
       </div>

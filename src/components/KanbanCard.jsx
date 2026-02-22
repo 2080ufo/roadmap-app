@@ -14,6 +14,7 @@ export default function KanbanCard({ task, onDelete }) {
   }
 
   const age = task.created_at ? new Date(task.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''
+  const tags = task.tags || []
 
   return (
     <div
@@ -32,6 +33,19 @@ export default function KanbanCard({ task, onDelete }) {
           ✕
         </button>
       </div>
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1 mt-2">
+          {tags.map(tag => (
+            <span
+              key={tag.id}
+              className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium"
+              style={{ backgroundColor: tag.color + '20', color: tag.color }}
+            >
+              {tag.name}
+            </span>
+          ))}
+        </div>
+      )}
       {age && <p className="text-[11px] text-text-muted mt-1.5">{age}</p>}
     </div>
   )

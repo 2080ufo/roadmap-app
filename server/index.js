@@ -191,24 +191,55 @@ app.delete('/api/milestones/:id', authMiddleware, async (req, res) => {
 app.get('/api/tasks', authMiddleware, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      'SELECT * FROM tasks WHERE user_id = $1 ORDER BY created_at DESC',
+      `SELECT t.*, COALESCE(
+        json_agg(json_build_object('id', tg.id, 'name', tg.name, 'color', tg.color)) 
+        FILTER (WHERE tg.id IS NOT NULL), '[]'
+      ) as tags
+      FROM tasks t
+      LEFT JOIN task_tags tt ON t.id = tt.task_id
+      LEFT JOIN tags tg ON tt.tag_id = tg.id
+      WHERE t.user_id = $1
+      GROUP BY t.id
+      ORDER BY t.created_at DESC`,
       [req.user.id]
     )
     res.json(rows)
-  } catch {
+  } catch (e) {
+    console.error(e)
     res.status(500).json({ error: 'Server error' })
   }
 })
 
 app.post('/api/tasks', authMiddleware, async (req, res) => {
   try {
-    const { title, milestone_id, column_name, position } = req.body
+    const { title, milestone_id, column_name, position, tag_ids } = req.body
     const { rows } = await pool.query(
       'INSERT INTO tasks (user_id, title, milestone_id, column_name, position) VALUES ($1, $2, $3, $4, $5) RETURNING *',
       [req.user.id, title, milestone_id || null, column_name || 'ideas', position || 0]
     )
-    res.json(rows[0])
-  } catch {
+    const task = rows[0]
+    // Attach tags
+    if (tag_ids?.length) {
+      for (const tagId of tag_ids) {
+        await pool.query('INSERT INTO task_tags (task_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [task.id, tagId])
+      }
+    }
+    // Re-fetch with tags
+    const { rows: full } = await pool.query(
+      `SELECT t.*, COALESCE(
+        json_agg(json_build_object('id', tg.id, 'name', tg.name, 'color', tg.color))
+        FILTER (WHERE tg.id IS NOT NULL), '[]'
+      ) as tags
+      FROM tasks t
+      LEFT JOIN task_tags tt ON t.id = tt.task_id
+      LEFT JOIN tags tg ON tt.tag_id = tg.id
+      WHERE t.id = $1
+      GROUP BY t.id`,
+      [task.id]
+    )
+    res.json(full[0] || task)
+  } catch (e) {
+    console.error(e)
     res.status(500).json({ error: 'Server error' })
   }
 })
@@ -235,6 +266,51 @@ app.delete('/api/tasks/:id', authMiddleware, async (req, res) => {
   } catch {
     res.status(500).json({ error: 'Server error' })
   }
+})
+
+// ── Tags ──
+
+app.get('/api/tags', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM tags WHERE user_id = $1 ORDER BY name', [req.user.id])
+    res.json(rows)
+  } catch { res.status(500).json({ error: 'Server error' }) }
+})
+
+app.post('/api/tags', authMiddleware, async (req, res) => {
+  try {
+    const { name, color } = req.body
+    if (!name?.trim()) return res.status(400).json({ error: 'Name required' })
+    const { rows } = await pool.query(
+      'INSERT INTO tags (user_id, name, color) VALUES ($1, $2, $3) ON CONFLICT (user_id, name) DO UPDATE SET color = $3 RETURNING *',
+      [req.user.id, name.trim().toLowerCase(), color || '#3b82f6']
+    )
+    res.json(rows[0])
+  } catch { res.status(500).json({ error: 'Server error' }) }
+})
+
+app.delete('/api/tags/:id', authMiddleware, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM tags WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id])
+    res.json({ ok: true })
+  } catch { res.status(500).json({ error: 'Server error' }) }
+})
+
+// ── Task Tags ──
+
+app.post('/api/tasks/:id/tags', authMiddleware, async (req, res) => {
+  try {
+    const { tag_id } = req.body
+    await pool.query('INSERT INTO task_tags (task_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [req.params.id, tag_id])
+    res.json({ ok: true })
+  } catch { res.status(500).json({ error: 'Server error' }) }
+})
+
+app.delete('/api/tasks/:id/tags/:tagId', authMiddleware, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM task_tags WHERE task_id = $1 AND tag_id = $2', [req.params.id, req.params.tagId])
+    res.json({ ok: true })
+  } catch { res.status(500).json({ error: 'Server error' }) }
 })
 
 // ── Task Move ──
