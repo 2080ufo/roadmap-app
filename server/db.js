@@ -87,6 +87,7 @@ export async function initDB() {
     DO $$ BEGIN
       ALTER TABLE tasks ADD COLUMN IF NOT EXISTS column_name TEXT DEFAULT 'ideas';
       ALTER TABLE tasks ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0;
+      ALTER TABLE tasks ADD COLUMN IF NOT EXISTS description TEXT;
     EXCEPTION WHEN others THEN NULL;
     END $$;
   `)

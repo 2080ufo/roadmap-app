@@ -212,10 +212,10 @@ app.get('/api/tasks', authMiddleware, async (req, res) => {
 
 app.post('/api/tasks', authMiddleware, async (req, res) => {
   try {
-    const { title, milestone_id, column_name, position, tag_ids } = req.body
+    const { title, description, milestone_id, column_name, position, tag_ids } = req.body
     const { rows } = await pool.query(
-      'INSERT INTO tasks (user_id, title, milestone_id, column_name, position) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [req.user.id, title, milestone_id || null, column_name || 'ideas', position || 0]
+      'INSERT INTO tasks (user_id, title, description, milestone_id, column_name, position) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [req.user.id, title, description || null, milestone_id || null, column_name || 'ideas', position || 0]
     )
     const task = rows[0]
     // Attach tags
@@ -246,12 +246,12 @@ app.post('/api/tasks', authMiddleware, async (req, res) => {
 
 app.put('/api/tasks/:id', authMiddleware, async (req, res) => {
   try {
-    const { completed, title } = req.body
+    const { completed, title, description } = req.body
     const completed_at = completed ? new Date().toISOString() : null
     const { rows } = await pool.query(
-      `UPDATE tasks SET completed = COALESCE($1, completed), completed_at = $2, title = COALESCE($3, title)
-       WHERE id = $4 AND user_id = $5 RETURNING *`,
-      [completed, completed_at, title, req.params.id, req.user.id]
+      `UPDATE tasks SET completed = COALESCE($1, completed), completed_at = $2, title = COALESCE($3, title), description = COALESCE($4, description)
+       WHERE id = $5 AND user_id = $6 RETURNING *`,
+      [completed, completed_at, title, description, req.params.id, req.user.id]
     )
     res.json(rows[0])
   } catch {

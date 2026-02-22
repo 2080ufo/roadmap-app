@@ -7,6 +7,7 @@ const TAG_COLORS = [
 
 export default function CreateTaskModal({ isOpen, columnId, tags, onClose, onSubmit, onCreateTag }) {
   const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
   const [selectedTags, setSelectedTags] = useState([])
   const [tagSearch, setTagSearch] = useState('')
   const [showTagDropdown, setShowTagDropdown] = useState(false)
@@ -17,6 +18,7 @@ export default function CreateTaskModal({ isOpen, columnId, tags, onClose, onSub
   useEffect(() => {
     if (isOpen) {
       setTitle('')
+      setDescription('')
       setSelectedTags([])
       setTagSearch('')
       setTimeout(() => inputRef.current?.focus(), 100)
@@ -69,7 +71,7 @@ export default function CreateTaskModal({ isOpen, columnId, tags, onClose, onSub
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!title.trim()) return
-    onSubmit(columnId, title.trim(), selectedTags.map(t => t.id))
+    onSubmit(columnId, title.trim(), description.trim(), selectedTags.map(t => t.id))
     onClose()
   }
 
@@ -145,6 +147,15 @@ export default function CreateTaskModal({ isOpen, columnId, tags, onClose, onSub
               </div>
             )}
           </div>
+
+          {/* Description */}
+          <textarea
+            value={description}
+            onChange={e => setDescription(e.target.value)}
+            placeholder="Description (optional)"
+            rows={4}
+            className="w-full mt-3 px-4 py-3 bg-surface-700 border border-surface-600 rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-blue/50 text-sm resize-none"
+          />
 
           {/* Selected tags */}
           {selectedTags.length > 0 && (
