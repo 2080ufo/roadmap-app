@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
-import { useAuth } from '../contexts/AuthContext'
+import api from '../lib/api'
 
 export default function TodoList() {
-  const { user } = useAuth()
   const [tasks, setTasks] = useState([])
   const [newTask, setNewTask] = useState('')
   const [showCompleted, setShowCompleted] = useState(false)
@@ -11,26 +9,28 @@ export default function TodoList() {
   useEffect(() => { fetchTasks() }, [])
 
   const fetchTasks = async () => {
-    const { data } = await supabase.from('tasks').select('*').eq('user_id', user.id).order('created_at', { ascending: false })
-    setTasks(data || [])
+    try {
+      const data = await api.get('/api/tasks')
+      setTasks(data || [])
+    } catch { setTasks([]) }
   }
 
   const addTask = async (e) => {
     e.preventDefault()
     if (!newTask.trim()) return
-    const { data } = await supabase.from('tasks').insert({ user_id: user.id, title: newTask.trim() }).select().single()
+    const data = await api.post('/api/tasks', { title: newTask.trim() })
     if (data) { setTasks([data, ...tasks]); setNewTask('') }
   }
 
   const toggleTask = async (task) => {
     const completed = !task.completed
     const completed_at = completed ? new Date().toISOString() : null
-    await supabase.from('tasks').update({ completed, completed_at }).eq('id', task.id)
+    await api.put(`/api/tasks/${task.id}`, { completed })
     setTasks(tasks.map(t => t.id === task.id ? { ...t, completed, completed_at } : t))
   }
 
   const deleteTask = async (id) => {
-    await supabase.from('tasks').delete().eq('id', id)
+    await api.del(`/api/tasks/${id}`)
     setTasks(tasks.filter(t => t.id !== id))
   }
 

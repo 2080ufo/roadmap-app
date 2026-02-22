@@ -1,0 +1,56 @@
+import pg from 'pg'
+const { Pool } = pg
+
+const dbUrl = process.env.DATABASE_URL || 'postgresql://localhost:5432/roadmap_app'
+const needsSsl = dbUrl.includes('railway') || dbUrl.includes('rlwy') || process.env.NODE_ENV === 'production'
+
+const pool = new Pool({
+  connectionString: dbUrl,
+  ssl: needsSsl ? { rejectUnauthorized: false } : false
+})
+
+export async function initDB() {
+  await pool.query(`
+    CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+    CREATE TABLE IF NOT EXISTS users (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS roadmaps (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT NOT NULL DEFAULT 'My Roadmap',
+      description TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS milestones (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      roadmap_id UUID REFERENCES roadmaps(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      description TEXT,
+      status TEXT CHECK (status IN ('planned', 'in_progress', 'done')) DEFAULT 'planned',
+      position INTEGER NOT NULL DEFAULT 0,
+      color TEXT DEFAULT '#00d4ff',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS tasks (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+      milestone_id UUID REFERENCES milestones(id) ON DELETE SET NULL,
+      title TEXT NOT NULL,
+      completed BOOLEAN DEFAULT FALSE,
+      completed_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+  `)
+  console.log('Database tables initialized')
+}
+
+export default pool

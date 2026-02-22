@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import api from '../lib/api'
 
 const AuthContext = createContext({})
 
@@ -10,21 +10,40 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      setLoading(false)
-    })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-    })
-
-    return () => subscription.unsubscribe()
+    const token = localStorage.getItem('token')
+    if (!token) { setLoading(false); return }
+    api.get('/api/auth/me')
+      .then(u => setUser(u))
+      .catch(() => localStorage.removeItem('token'))
+      .finally(() => setLoading(false))
   }, [])
 
-  const signUp = (email, password) => supabase.auth.signUp({ email, password })
-  const signIn = (email, password) => supabase.auth.signInWithPassword({ email, password })
-  const signOut = () => supabase.auth.signOut()
+  const signUp = async (email, password) => {
+    try {
+      const { token, user } = await api.post('/api/auth/signup', { email, password })
+      localStorage.setItem('token', token)
+      setUser(user)
+      return { error: null }
+    } catch (e) {
+      return { error: { message: e.message } }
+    }
+  }
+
+  const signIn = async (email, password) => {
+    try {
+      const { token, user } = await api.post('/api/auth/signin', { email, password })
+      localStorage.setItem('token', token)
+      setUser(user)
+      return { error: null }
+    } catch (e) {
+      return { error: { message: e.message } }
+    }
+  }
+
+  const signOut = () => {
+    localStorage.removeItem('token')
+    setUser(null)
+  }
 
   return (
     <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut }}>

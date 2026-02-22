@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import api from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
 import TodoList from '../components/TodoList'
 
@@ -13,21 +13,25 @@ export default function Dashboard() {
   useEffect(() => { fetchRoadmaps() }, [])
 
   const fetchRoadmaps = async () => {
-    const { data } = await supabase.from('roadmaps').select('*, milestones(count)').eq('user_id', user.id).order('created_at', { ascending: false })
-    setRoadmaps(data || [])
+    try {
+      const data = await api.get('/api/roadmaps')
+      setRoadmaps(data || [])
+    } catch { setRoadmaps([]) }
     setLoading(false)
   }
 
   const createRoadmap = async () => {
-    const { data, error } = await supabase.from('roadmaps').insert({ user_id: user.id, title: 'New Roadmap' }).select().single()
-    if (data) navigate(`/roadmap/${data.id}`)
+    try {
+      const data = await api.post('/api/roadmaps', { title: 'New Roadmap' })
+      if (data?.id) navigate(`/roadmap/${data.id}`)
+    } catch (e) { alert('Error: ' + e.message) }
   }
 
   const deleteRoadmap = async (id, e) => {
     e.preventDefault()
     e.stopPropagation()
     if (!confirm('Delete this roadmap?')) return
-    await supabase.from('roadmaps').delete().eq('id', id)
+    await api.del(`/api/roadmaps/${id}`)
     setRoadmaps(r => r.filter(x => x.id !== id))
   }
 
@@ -56,7 +60,7 @@ export default function Dashboard() {
                       <div className="w-1.5 h-8 rounded-full bg-neon-cyan/40" />
                       <div>
                         <h3 className="font-medium">{r.title}</h3>
-                        <p className="text-xs text-gray-500">{r.milestones?.[0]?.count || 0} milestones</p>
+                        <p className="text-xs text-gray-500">{r.milestone_count || 0} milestones</p>
                       </div>
                     </div>
                     <button onClick={(e) => deleteRoadmap(r.id, e)} className="text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all text-sm">✕</button>

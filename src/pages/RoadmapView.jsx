@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import api from '../lib/api'
 import RoadmapTimeline from '../components/RoadmapTimeline'
 
 export default function RoadmapView() {
@@ -13,42 +13,44 @@ export default function RoadmapView() {
   useEffect(() => { fetchRoadmap() }, [id])
 
   const fetchRoadmap = async () => {
-    const { data: rm } = await supabase.from('roadmaps').select('*').eq('id', id).single()
-    if (rm) { setRoadmap(rm); setTitle(rm.title) }
-    const { data: ms } = await supabase.from('milestones').select('*').eq('roadmap_id', id).order('position')
-    setMilestones(ms || [])
+    try {
+      const rm = await api.get(`/api/roadmaps/${id}`)
+      if (rm) { setRoadmap(rm); setTitle(rm.title) }
+      const ms = await api.get(`/api/milestones?roadmap_id=${id}`)
+      setMilestones(ms || [])
+    } catch {}
   }
 
   const updateTitle = async () => {
     if (!title.trim()) return
-    await supabase.from('roadmaps').update({ title: title.trim() }).eq('id', id)
+    await api.put(`/api/roadmaps/${id}`, { title: title.trim() })
     setRoadmap({ ...roadmap, title: title.trim() })
     setEditing(false)
   }
 
   const addMilestone = async () => {
     const pos = milestones.length
-    const { data } = await supabase.from('milestones')
-      .insert({ roadmap_id: id, title: 'New Milestone', position: pos, status: 'planned', color: '#00d4ff' })
-      .select().single()
+    const data = await api.post('/api/milestones', {
+      roadmap_id: id, title: 'New Milestone', position: pos, status: 'planned', color: '#00d4ff'
+    })
     if (data) setMilestones([...milestones, data])
   }
 
   const updateMilestone = async (msId, updates) => {
-    await supabase.from('milestones').update(updates).eq('id', msId)
+    await api.put(`/api/milestones/${msId}`, updates)
     setMilestones(milestones.map(m => m.id === msId ? { ...m, ...updates } : m))
   }
 
   const deleteMilestone = async (msId) => {
-    await supabase.from('milestones').delete().eq('id', msId)
+    await api.del(`/api/milestones/${msId}`)
     setMilestones(milestones.filter(m => m.id !== msId))
   }
 
   const reorderMilestones = async (newOrder) => {
     setMilestones(newOrder)
-    for (let i = 0; i < newOrder.length; i++) {
-      await supabase.from('milestones').update({ position: i }).eq('id', newOrder[i].id)
-    }
+    await api.put('/api/milestones/reorder', {
+      milestones: newOrder.map((m, i) => ({ id: m.id, position: i }))
+    })
   }
 
   if (!roadmap) return <div className="flex items-center justify-center h-64"><div className="w-5 h-5 border-2 border-neon-cyan border-t-transparent rounded-full animate-spin" /></div>
