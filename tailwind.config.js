@@ -4,8 +4,9 @@ export default {
   theme: {
     extend: {
       colors: {
-        dark: { 900: '#0a0a0f', 800: '#12121a', 700: '#1a1a25', 600: '#252530' },
-        neon: { cyan: '#00d4ff', pink: '#ff006e', green: '#00ff88' }
+        surface: { 900: '#0f1117', 800: '#161921', 700: '#1e2028', 600: '#2a2d35' },
+        accent: { blue: '#3b82f6', green: '#22c55e', amber: '#f59e0b' },
+        text: { primary: '#e4e4e7', secondary: '#a1a1aa', muted: '#71717a' }
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif']

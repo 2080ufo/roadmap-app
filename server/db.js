@@ -47,8 +47,18 @@ export async function initDB() {
       title TEXT NOT NULL,
       completed BOOLEAN DEFAULT FALSE,
       completed_at TIMESTAMPTZ,
+      column_name TEXT DEFAULT 'ideas',
+      position INTEGER DEFAULT 0,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
+  `)
+  // Migrate: add column_name and position if missing
+  await pool.query(`
+    DO $$ BEGIN
+      ALTER TABLE tasks ADD COLUMN IF NOT EXISTS column_name TEXT DEFAULT 'ideas';
+      ALTER TABLE tasks ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0;
+    EXCEPTION WHEN others THEN NULL;
+    END $$;
   `)
   console.log('Database tables initialized')
 }

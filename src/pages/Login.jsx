@@ -24,9 +24,9 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="w-3 h-3 rounded-full bg-neon-cyan shadow-[0_0_12px_rgba(0,212,255,0.5)] mx-auto mb-4" />
+          <div className="w-3 h-3 rounded-full bg-accent-blue mx-auto mb-4" />
           <h1 className="text-2xl font-bold tracking-tight">Roadmap</h1>
-          <p className="text-gray-500 text-sm mt-1">Plan your journey</p>
+          <p className="text-text-muted text-sm mt-1">Plan your journey</p>
         </div>
         <form onSubmit={handleSubmit} className="card p-6 space-y-4">
           {error && <div className="text-red-400 text-sm bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-2">{error}</div>}
@@ -35,9 +35,9 @@ export default function Login() {
           <button type="submit" disabled={loading} className="w-full btn-primary py-3 font-medium disabled:opacity-50">
             {loading ? '...' : isSignUp ? 'Create Account' : 'Sign In'}
           </button>
-          <p className="text-center text-sm text-gray-500">
+          <p className="text-center text-sm text-text-muted">
             {isSignUp ? 'Have an account?' : "Don't have an account?"}{' '}
-            <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="text-neon-cyan hover:underline">
+            <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="text-accent-blue hover:underline">
               {isSignUp ? 'Sign in' : 'Sign up'}
             </button>
           </p>

@@ -202,10 +202,10 @@ app.get('/api/tasks', authMiddleware, async (req, res) => {
 
 app.post('/api/tasks', authMiddleware, async (req, res) => {
   try {
-    const { title, milestone_id } = req.body
+    const { title, milestone_id, column_name, position } = req.body
     const { rows } = await pool.query(
-      'INSERT INTO tasks (user_id, title, milestone_id) VALUES ($1, $2, $3) RETURNING *',
-      [req.user.id, title, milestone_id || null]
+      'INSERT INTO tasks (user_id, title, milestone_id, column_name, position) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [req.user.id, title, milestone_id || null, column_name || 'ideas', position || 0]
     )
     res.json(rows[0])
   } catch {
@@ -235,6 +235,30 @@ app.delete('/api/tasks/:id', authMiddleware, async (req, res) => {
   } catch {
     res.status(500).json({ error: 'Server error' })
   }
+})
+
+// ── Task Move ──
+
+app.put('/api/tasks/:id/move', authMiddleware, async (req, res) => {
+  try {
+    const { column_name, position } = req.body
+    const { rows } = await pool.query(
+      'UPDATE tasks SET column_name = $1, position = COALESCE($2, position) WHERE id = $3 AND user_id = $4 RETURNING *',
+      [column_name, position, req.params.id, req.user.id]
+    )
+    if (!rows[0]) return res.status(404).json({ error: 'Not found' })
+    res.json(rows[0])
+  } catch {
+    res.status(500).json({ error: 'Server error' })
+  }
+})
+
+// ── WIP Signal Webhook ──
+
+app.post('/api/webhooks/wip-signal', authMiddleware, async (req, res) => {
+  const { task_id, title } = req.body
+  console.log(`[WIP SIGNAL] Task "${title}" (${task_id}) moved to WIP - ready for implementation`)
+  res.json({ ok: true, message: 'WIP signal received' })
 })
 
 // Serve static in production
