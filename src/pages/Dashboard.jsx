@@ -81,6 +81,13 @@ export default function Dashboard() {
     }
   }
 
+  const updateTask = async (id, updates) => {
+    try {
+      await api.put(`/api/tasks/${id}`, updates)
+      setTasks(tasks.map(t => t.id === id ? { ...t, ...updates } : t))
+    } catch {}
+  }
+
   const deleteTask = async (id) => {
     await api.del(`/api/tasks/${id}`)
     setTasks(tasks.filter(t => t.id !== id))
@@ -165,6 +172,7 @@ export default function Dashboard() {
         <KanbanBoard
           tasks={filteredTasks}
           onDeleteTask={deleteTask}
+          onUpdateTask={updateTask}
           onMoveTask={moveTask}
           onReorderTasks={reorderTasks}
           onOpenCreateModal={openCreateModal}

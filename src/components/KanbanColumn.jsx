@@ -8,7 +8,7 @@ const columnStyles = {
   done: { accent: 'bg-accent-green', label: 'Done' }
 }
 
-export default function KanbanColumn({ columnId, tasks, onDeleteTask, onOpenCreateModal }) {
+export default function KanbanColumn({ columnId, tasks, onDeleteTask, onUpdateTask, onOpenCreateModal }) {
   const { setNodeRef, isOver } = useDroppable({ id: columnId })
   const style = columnStyles[columnId]
 
@@ -30,7 +30,7 @@ export default function KanbanColumn({ columnId, tasks, onDeleteTask, onOpenCrea
       <div className="flex-1 p-3 space-y-2 overflow-y-auto">
         <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
           {tasks.map(task => (
-            <KanbanCard key={task.id} task={task} onDelete={onDeleteTask} />
+            <KanbanCard key={task.id} task={task} onDelete={onDeleteTask} onUpdate={onUpdateTask} />
           ))}
         </SortableContext>
       </div>
