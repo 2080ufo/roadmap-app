@@ -2,10 +2,20 @@ import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import bcrypt from 'bcryptjs'
+import multer from 'multer'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
 import pool, { initDB } from './db.js'
 import { generateToken, authMiddleware } from './auth.js'
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (req, file, cb) => {
+    const allowed = ['image/jpeg','image/png','image/gif','image/webp','application/pdf','text/plain','text/markdown','text/csv','application/json']
+    cb(null, allowed.includes(file.mimetype) || file.mimetype.startsWith('image/'))
+  }
+})
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -374,6 +384,59 @@ app.put('/api/webhooks/wip-pending/:id/ack', authMiddleware, async (req, res) =>
   } catch {
     res.status(500).json({ error: 'Server error' })
   }
+})
+
+// ── Task Attachments ──
+
+app.get('/api/tasks/:id/attachments', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, task_id, filename, original_name, mime_type, size, created_at FROM task_attachments WHERE task_id = $1 ORDER BY created_at',
+      [req.params.id]
+    )
+    res.json(rows)
+  } catch { res.status(500).json({ error: 'Server error' }) }
+})
+
+app.post('/api/tasks/:id/attachments', authMiddleware, upload.array('files', 5), async (req, res) => {
+  try {
+    if (!req.files?.length) return res.status(400).json({ error: 'No files provided' })
+    // Check existing count
+    const { rows: existing } = await pool.query('SELECT COUNT(*) as cnt FROM task_attachments WHERE task_id = $1', [req.params.id])
+    if (parseInt(existing[0].cnt) + req.files.length > 10) {
+      return res.status(400).json({ error: 'Max 10 attachments per task' })
+    }
+    const results = []
+    for (const file of req.files) {
+      const { rows } = await pool.query(
+        'INSERT INTO task_attachments (task_id, filename, original_name, mime_type, size, data) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, task_id, filename, original_name, mime_type, size, created_at',
+        [req.params.id, file.originalname, file.originalname, file.mimetype, file.size, file.buffer]
+      )
+      results.push(rows[0])
+    }
+    res.json(results)
+  } catch (e) { console.error(e); res.status(500).json({ error: 'Upload failed' }) }
+})
+
+app.get('/api/attachments/:id/download', authMiddleware, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM task_attachments WHERE id = $1', [req.params.id])
+    if (!rows[0]) return res.status(404).json({ error: 'Not found' })
+    const att = rows[0]
+    res.set({
+      'Content-Type': att.mime_type,
+      'Content-Disposition': `inline; filename="${att.original_name}"`,
+      'Content-Length': att.size
+    })
+    res.send(att.data)
+  } catch { res.status(500).json({ error: 'Server error' }) }
+})
+
+app.delete('/api/attachments/:id', authMiddleware, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM task_attachments WHERE id = $1', [req.params.id])
+    res.json({ ok: true })
+  } catch { res.status(500).json({ error: 'Server error' }) }
 })
 
 // Serve static in production

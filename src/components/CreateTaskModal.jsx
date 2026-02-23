@@ -5,6 +5,26 @@ const TAG_COLORS = [
   '#ec4899', '#06b6d4', '#f97316', '#14b8a6', '#6366f1'
 ]
 
+const FILE_ICONS = {
+  'image': '🖼️',
+  'application/pdf': '📄',
+  'text': '📝',
+  'default': '📎'
+}
+
+const getFileIcon = (mimeType) => {
+  if (mimeType.startsWith('image/')) return FILE_ICONS['image']
+  if (mimeType === 'application/pdf') return FILE_ICONS['application/pdf']
+  if (mimeType.startsWith('text/')) return FILE_ICONS['text']
+  return FILE_ICONS['default']
+}
+
+const formatFileSize = (bytes) => {
+  if (bytes < 1024) return bytes + ' B'
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB'
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+}
+
 export default function CreateTaskModal({ isOpen, columnId, tags, onClose, onSubmit, onCreateTag }) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -12,8 +32,11 @@ export default function CreateTaskModal({ isOpen, columnId, tags, onClose, onSub
   const [tagSearch, setTagSearch] = useState('')
   const [showTagDropdown, setShowTagDropdown] = useState(false)
   const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0])
+  const [files, setFiles] = useState([])
+  const [uploading, setUploading] = useState(false)
   const inputRef = useRef(null)
   const tagInputRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     if (isOpen) {
@@ -21,9 +44,46 @@ export default function CreateTaskModal({ isOpen, columnId, tags, onClose, onSub
       setDescription('')
       setSelectedTags([])
       setTagSearch('')
+      setFiles([])
       setTimeout(() => inputRef.current?.focus(), 100)
     }
   }, [isOpen])
+
+  const handleFileSelect = (e) => {
+    const newFiles = Array.from(e.target.files || [])
+    const validFiles = newFiles.filter(f => {
+      const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain', 'text/markdown', 'text/csv', 'application/json']
+      return allowed.includes(f.type) || f.type.startsWith('image/')
+    })
+    if (validFiles.length + files.length > 5) {
+      alert('Maximum 5 files allowed')
+      return
+    }
+    setFiles([...files, ...validFiles])
+    e.target.value = '' // Reset input
+  }
+
+  const removeFile = (index) => {
+    setFiles(files.filter((_, i) => i !== index))
+  }
+
+  const handleDrop = (e) => {
+    e.preventDefault()
+    const droppedFiles = Array.from(e.dataTransfer.files)
+    const validFiles = droppedFiles.filter(f => {
+      const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf', 'text/plain', 'text/markdown', 'text/csv', 'application/json']
+      return allowed.includes(f.type) || f.type.startsWith('image/')
+    })
+    if (validFiles.length + files.length > 5) {
+      alert('Maximum 5 files allowed')
+      return
+    }
+    setFiles([...files, ...validFiles])
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+  }
 
   if (!isOpen) return null
 
@@ -68,11 +128,18 @@ export default function CreateTaskModal({ isOpen, columnId, tags, onClose, onSub
     }
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (!title.trim()) return
-    onSubmit(columnId, title.trim(), description.trim(), selectedTags.map(t => t.id))
-    onClose()
+    setUploading(true)
+    try {
+      await onSubmit(columnId, title.trim(), description.trim(), selectedTags.map(t => t.id), files)
+      onClose()
+    } catch (err) {
+      console.error('Failed to create task:', err)
+    } finally {
+      setUploading(false)
+    }
   }
 
   const handleKeyDown = (e) => {
@@ -157,6 +224,55 @@ export default function CreateTaskModal({ isOpen, columnId, tags, onClose, onSub
             className="w-full mt-3 px-4 py-3 bg-surface-700 border border-surface-600 rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-blue/50 text-sm resize-none"
           />
 
+          {/* File attachments */}
+          <div
+            className="mt-3 border-2 border-dashed border-surface-600 rounded-lg p-4 hover:border-accent-blue/40 transition-colors cursor-pointer"
+            onClick={() => fileInputRef.current?.click()}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*,.pdf,.txt,.md,.csv,.json"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            <div className="text-center">
+              <span className="text-2xl">📎</span>
+              <p className="text-xs text-text-muted mt-1">
+                Drop files here or click to upload
+              </p>
+              <p className="text-[10px] text-text-muted/60 mt-0.5">
+                Images, PDF, TXT, MD, CSV, JSON • Max 5 files • 10MB each
+              </p>
+            </div>
+          </div>
+
+          {/* Uploaded files preview */}
+          {files.length > 0 && (
+            <div className="mt-2 space-y-1.5">
+              {files.map((file, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center gap-2 px-2 py-1.5 bg-surface-700 rounded-lg text-xs"
+                >
+                  <span>{getFileIcon(file.type)}</span>
+                  <span className="flex-1 truncate text-text-secondary">{file.name}</span>
+                  <span className="text-text-muted text-[10px]">{formatFileSize(file.size)}</span>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); removeFile(idx) }}
+                    className="text-text-muted hover:text-red-400 transition-colors"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Selected tags */}
           {selectedTags.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-3">
@@ -188,10 +304,10 @@ export default function CreateTaskModal({ isOpen, columnId, tags, onClose, onSub
               </button>
               <button
                 type="submit"
-                disabled={!title.trim()}
+                disabled={!title.trim() || uploading}
                 className="px-4 py-1.5 bg-accent-blue/10 border border-accent-blue/30 text-accent-blue rounded-lg text-sm hover:bg-accent-blue/20 transition-all disabled:opacity-30"
               >
-                Add task
+                {uploading ? 'Creating...' : (files.length > 0 ? `Add task + ${files.length} file${files.length > 1 ? 's' : ''}` : 'Add task')}
               </button>
             </div>
           </div>

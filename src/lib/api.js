@@ -15,11 +15,26 @@ async function request(method, path, body) {
   return data
 }
 
+async function uploadFiles(path, files) {
+  const token = localStorage.getItem('token')
+  const form = new FormData()
+  for (const f of files) form.append('files', f)
+  const res = await fetch(`${BASE_URL}${path}`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  })
+  const data = await res.json()
+  if (!res.ok) throw new Error(data.error || 'Upload failed')
+  return data
+}
+
 const api = {
   get: (path) => request('GET', path),
   post: (path, body) => request('POST', path, body),
   put: (path, body) => request('PUT', path, body),
   del: (path) => request('DELETE', path),
+  upload: uploadFiles,
 }
 
 export default api

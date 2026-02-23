@@ -82,6 +82,21 @@ export async function initDB() {
     );
   `)
 
+  // Task attachments (stores files as binary in database)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS task_attachments (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      task_id UUID REFERENCES tasks(id) ON DELETE CASCADE,
+      filename TEXT NOT NULL,
+      original_name TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      data BYTEA NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_attachments_task ON task_attachments(task_id);
+  `)
+
   // Migrate: add column_name and position if missing
   await pool.query(`
     DO $$ BEGIN
