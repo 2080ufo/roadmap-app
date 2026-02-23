@@ -180,11 +180,21 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto px-6 py-4 pb-20">
         <KanbanBoard
           tasks={filteredTasks}
+          tags={tags}
           onDeleteTask={deleteTask}
           onUpdateTask={updateTask}
           onMoveTask={moveTask}
           onReorderTasks={reorderTasks}
           onOpenCreateModal={openCreateModal}
+          onCreateTag={createTag}
+          onAddTag={async (taskId, tagId) => {
+            await api.post(`/api/tasks/${taskId}/tags`, { tag_id: tagId })
+            setTasks(tasks.map(t => t.id === taskId ? { ...t, tags: [...(t.tags||[]), tags.find(tg => tg.id === tagId)] } : t))
+          }}
+          onRemoveTag={async (taskId, tagId) => {
+            await api.del(`/api/tasks/${taskId}/tags/${tagId}`)
+            setTasks(tasks.map(t => t.id === taskId ? { ...t, tags: (t.tags||[]).filter(tg => tg.id !== tagId) } : t))
+          }}
         />
       </div>
 

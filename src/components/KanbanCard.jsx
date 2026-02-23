@@ -48,7 +48,9 @@ function AttachmentItem({ att, onDelete }) {
   )
 }
 
-export default function KanbanCard({ task, onDelete, onUpdate }) {
+const TAG_COLORS = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316','#14b8a6','#6366f1']
+
+export default function KanbanCard({ task, tags: allTags = [], onDelete, onUpdate, onCreateTag, onAddTag, onRemoveTag }) {
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
   const [editDesc, setEditDesc] = useState(task.description || '')
@@ -56,6 +58,8 @@ export default function KanbanCard({ task, onDelete, onUpdate }) {
   const [showAttachments, setShowAttachments] = useState((task.attachments?.length || 0) > 0)
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
+  const [showTagPicker, setShowTagPicker] = useState(false)
+  const [tagSearch, setTagSearch] = useState('')
   const fileRef = useRef(null)
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -188,19 +192,91 @@ export default function KanbanCard({ task, onDelete, onUpdate }) {
       )}
 
       {/* Tags */}
-      {tags.length > 0 && (
-        <div className="flex flex-wrap gap-1 mt-2">
-          {tags.map(tag => (
-            <span
-              key={tag.id}
-              className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium"
-              style={{ backgroundColor: tag.color + '20', color: tag.color }}
+      <div className="flex flex-wrap gap-1 mt-2 items-center">
+        {tags.map(tag => (
+          <span
+            key={tag.id}
+            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-medium group/tag"
+            style={{ backgroundColor: tag.color + '20', color: tag.color }}
+          >
+            {tag.name}
+            {onRemoveTag && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onRemoveTag(task.id, tag.id) }}
+                className="opacity-0 group-hover/tag:opacity-100 hover:opacity-100 ml-0.5 transition-opacity"
+              >✕</button>
+            )}
+          </span>
+        ))}
+        {onAddTag && (
+          <div className="relative">
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowTagPicker(!showTagPicker); setTagSearch('') }}
+              className="text-text-muted hover:text-text-secondary text-[10px] px-1.5 py-0.5 rounded-full border border-dashed border-surface-500 hover:border-text-muted/40 transition-all opacity-0 group-hover:opacity-100"
             >
-              {tag.name}
-            </span>
-          ))}
-        </div>
-      )}
+              + tag
+            </button>
+            {showTagPicker && (
+              <div className="absolute left-0 top-full mt-1 bg-surface-700 border border-surface-600 rounded-lg shadow-lg z-50 w-44 overflow-hidden" onClick={e => e.stopPropagation()}>
+                <input
+                  value={tagSearch}
+                  onChange={e => setTagSearch(e.target.value)}
+                  placeholder="Search or create..."
+                  className="w-full px-2 py-1.5 bg-surface-800 text-xs text-text-primary placeholder-text-muted focus:outline-none border-b border-surface-600"
+                  autoFocus
+                  onKeyDown={e => {
+                    if (e.key === 'Escape') setShowTagPicker(false)
+                    if (e.key === 'Enter' && tagSearch.trim()) {
+                      e.preventDefault()
+                      const existing = allTags.find(t => t.name.toLowerCase() === tagSearch.toLowerCase())
+                      if (existing && !tags.find(t => t.id === existing.id)) {
+                        onAddTag(task.id, existing.id)
+                      } else if (!existing && onCreateTag) {
+                        onCreateTag(tagSearch.trim(), TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)]).then(tag => {
+                          if (tag) onAddTag(task.id, tag.id)
+                        })
+                      }
+                      setShowTagPicker(false)
+                      setTagSearch('')
+                    }
+                  }}
+                />
+                <div className="max-h-32 overflow-y-auto">
+                  {allTags
+                    .filter(t => !tags.find(tg => tg.id === t.id) && t.name.includes(tagSearch.toLowerCase()))
+                    .map(tag => (
+                      <button
+                        key={tag.id}
+                        onClick={() => { onAddTag(task.id, tag.id); setShowTagPicker(false) }}
+                        className="w-full text-left px-2 py-1.5 hover:bg-surface-600 text-xs flex items-center gap-2 transition-colors"
+                      >
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: tag.color }} />
+                        <span className="text-text-secondary">{tag.name}</span>
+                      </button>
+                    ))
+                  }
+                  {tagSearch && !allTags.find(t => t.name === tagSearch.toLowerCase()) && (
+                    <button
+                      onClick={async () => {
+                        if (onCreateTag) {
+                          const tag = await onCreateTag(tagSearch.trim(), TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)])
+                          if (tag) onAddTag(task.id, tag.id)
+                        }
+                        setShowTagPicker(false)
+                        setTagSearch('')
+                      }}
+                      className="w-full text-left px-2 py-1.5 hover:bg-surface-600 text-xs flex items-center gap-2 border-t border-surface-600 transition-colors"
+                    >
+                      <span className="text-accent-blue">+</span>
+                      <span className="text-text-muted">Create "{tagSearch}"</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Attachment count badge + toggle */}
       {(attachments.length > 0 || showAttachments) && (
