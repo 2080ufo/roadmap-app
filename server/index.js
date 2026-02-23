@@ -420,7 +420,15 @@ app.post('/api/tasks/:id/attachments', authMiddleware, upload.array('files', 5),
   } catch (e) { console.error(e); res.status(500).json({ error: 'Upload failed' }) }
 })
 
-app.get('/api/attachments/:id/download', authMiddleware, async (req, res) => {
+app.get('/api/attachments/:id/download', async (req, res) => {
+  // Allow token via query param for direct links (opened in new tab)
+  const token = req.headers.authorization?.split(' ')[1] || req.query.token
+  if (!token) return res.status(401).json({ error: 'No token provided' })
+  try {
+    const jwt = await import('jsonwebtoken')
+    jwt.default.verify(token, process.env.JWT_SECRET || 'dev-secret-change-me')
+  } catch { return res.status(401).json({ error: 'Invalid token' }) }
+
   try {
     const { rows } = await pool.query('SELECT * FROM task_attachments WHERE id = $1', [req.params.id])
     if (!rows[0]) return res.status(404).json({ error: 'Not found' })

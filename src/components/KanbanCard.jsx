@@ -12,7 +12,7 @@ function formatSize(bytes) {
 function AttachmentItem({ att, onDelete }) {
   const isImage = att.mime_type?.startsWith('image/')
   const token = localStorage.getItem('token')
-  const downloadUrl = `/api/attachments/${att.id}/download`
+  const downloadUrl = `/api/attachments/${att.id}/download?token=${encodeURIComponent(token)}`
 
   return (
     <div className="flex items-center gap-2 group/att bg-surface-800 rounded px-2 py-1.5 text-xs">
