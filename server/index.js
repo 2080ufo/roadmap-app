@@ -67,8 +67,8 @@ app.get('/api/roadmaps', authMiddleware, async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT r.*, (SELECT COUNT(*) FROM milestones WHERE roadmap_id = r.id) as milestone_count
-      FROM roadmaps r WHERE r.user_id = $1 ORDER BY r.created_at DESC
-    `, [req.user.id])
+      FROM roadmaps r ORDER BY r.created_at DESC
+    `)
     res.json(rows)
   } catch {
     res.status(500).json({ error: 'Server error' })
@@ -90,7 +90,7 @@ app.post('/api/roadmaps', authMiddleware, async (req, res) => {
 
 app.get('/api/roadmaps/:id', authMiddleware, async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM roadmaps WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id])
+    const { rows } = await pool.query('SELECT * FROM roadmaps WHERE id = $1', [req.params.id])
     if (!rows[0]) return res.status(404).json({ error: 'Not found' })
     res.json(rows[0])
   } catch {
@@ -102,8 +102,8 @@ app.put('/api/roadmaps/:id', authMiddleware, async (req, res) => {
   try {
     const { title } = req.body
     const { rows } = await pool.query(
-      'UPDATE roadmaps SET title = $1, updated_at = NOW() WHERE id = $2 AND user_id = $3 RETURNING *',
-      [title, req.params.id, req.user.id]
+      'UPDATE roadmaps SET title = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      [title, req.params.id]
     )
     res.json(rows[0])
   } catch {
@@ -113,7 +113,7 @@ app.put('/api/roadmaps/:id', authMiddleware, async (req, res) => {
 
 app.delete('/api/roadmaps/:id', authMiddleware, async (req, res) => {
   try {
-    await pool.query('DELETE FROM roadmaps WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id])
+    await pool.query('DELETE FROM roadmaps WHERE id = $1', [req.params.id])
     res.json({ ok: true })
   } catch {
     res.status(500).json({ error: 'Server error' })
@@ -126,9 +126,8 @@ app.get('/api/milestones', authMiddleware, async (req, res) => {
   try {
     const { roadmap_id } = req.query
     const { rows } = await pool.query(
-      `SELECT m.* FROM milestones m JOIN roadmaps r ON m.roadmap_id = r.id 
-       WHERE m.roadmap_id = $1 AND r.user_id = $2 ORDER BY m.position`,
-      [roadmap_id, req.user.id]
+      `SELECT m.* FROM milestones m WHERE m.roadmap_id = $1 ORDER BY m.position`,
+      [roadmap_id]
     )
     res.json(rows)
   } catch {
@@ -198,10 +197,8 @@ app.get('/api/tasks', authMiddleware, async (req, res) => {
       FROM tasks t
       LEFT JOIN task_tags tt ON t.id = tt.task_id
       LEFT JOIN tags tg ON tt.tag_id = tg.id
-      WHERE t.user_id = $1
       GROUP BY t.id
-      ORDER BY t.created_at DESC`,
-      [req.user.id]
+      ORDER BY t.created_at DESC`
     )
     res.json(rows)
   } catch (e) {
@@ -250,8 +247,8 @@ app.put('/api/tasks/:id', authMiddleware, async (req, res) => {
     const completed_at = completed ? new Date().toISOString() : null
     const { rows } = await pool.query(
       `UPDATE tasks SET completed = COALESCE($1, completed), completed_at = $2, title = COALESCE($3, title), description = COALESCE($4, description)
-       WHERE id = $5 AND user_id = $6 RETURNING *`,
-      [completed, completed_at, title, description, req.params.id, req.user.id]
+       WHERE id = $5 RETURNING *`,
+      [completed, completed_at, title, description, req.params.id]
     )
     res.json(rows[0])
   } catch {
@@ -261,7 +258,7 @@ app.put('/api/tasks/:id', authMiddleware, async (req, res) => {
 
 app.delete('/api/tasks/:id', authMiddleware, async (req, res) => {
   try {
-    await pool.query('DELETE FROM tasks WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id])
+    await pool.query('DELETE FROM tasks WHERE id = $1', [req.params.id])
     res.json({ ok: true })
   } catch {
     res.status(500).json({ error: 'Server error' })
@@ -272,7 +269,7 @@ app.delete('/api/tasks/:id', authMiddleware, async (req, res) => {
 
 app.get('/api/tags', authMiddleware, async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM tags WHERE user_id = $1 ORDER BY name', [req.user.id])
+    const { rows } = await pool.query('SELECT * FROM tags ORDER BY name')
     res.json(rows)
   } catch { res.status(500).json({ error: 'Server error' }) }
 })
@@ -291,7 +288,7 @@ app.post('/api/tags', authMiddleware, async (req, res) => {
 
 app.delete('/api/tags/:id', authMiddleware, async (req, res) => {
   try {
-    await pool.query('DELETE FROM tags WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id])
+    await pool.query('DELETE FROM tags WHERE id = $1', [req.params.id])
     res.json({ ok: true })
   } catch { res.status(500).json({ error: 'Server error' }) }
 })
@@ -319,8 +316,8 @@ app.put('/api/tasks/:id/move', authMiddleware, async (req, res) => {
   try {
     const { column_name, position } = req.body
     const { rows } = await pool.query(
-      'UPDATE tasks SET column_name = $1, position = COALESCE($2, position) WHERE id = $3 AND user_id = $4 RETURNING *',
-      [column_name, position, req.params.id, req.user.id]
+      'UPDATE tasks SET column_name = $1, position = COALESCE($2, position) WHERE id = $3 RETURNING *',
+      [column_name, position, req.params.id]
     )
     if (!rows[0]) return res.status(404).json({ error: 'Not found' })
     res.json(rows[0])
