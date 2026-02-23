@@ -200,14 +200,16 @@ app.delete('/api/milestones/:id', authMiddleware, async (req, res) => {
 app.get('/api/tasks', authMiddleware, async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT t.*, COALESCE(
-        json_agg(json_build_object('id', tg.id, 'name', tg.name, 'color', tg.color)) 
-        FILTER (WHERE tg.id IS NOT NULL), '[]'
-      ) as tags
+      `SELECT t.*,
+        COALESCE(
+          (SELECT json_agg(json_build_object('id', tg.id, 'name', tg.name, 'color', tg.color))
+           FROM task_tags tt JOIN tags tg ON tt.tag_id = tg.id WHERE tt.task_id = t.id), '[]'
+        ) as tags,
+        COALESCE(
+          (SELECT json_agg(json_build_object('id', a.id, 'filename', a.filename, 'original_name', a.original_name, 'mime_type', a.mime_type, 'size', a.size, 'created_at', a.created_at))
+           FROM task_attachments a WHERE a.task_id = t.id), '[]'
+        ) as attachments
       FROM tasks t
-      LEFT JOIN task_tags tt ON t.id = tt.task_id
-      LEFT JOIN tags tg ON tt.tag_id = tg.id
-      GROUP BY t.id
       ORDER BY t.created_at DESC`
     )
     res.json(rows)

@@ -70,11 +70,20 @@ export default function Dashboard() {
     setModalOpen(true)
   }
 
-  const addTask = async (columnName, title, description, tagIds) => {
+  const addTask = async (columnName, title, description, tagIds, files = []) => {
     const colTasks = tasks.filter(t => t.column_name === columnName)
     const data = await api.post('/api/tasks', { title, description: description || null, column_name: columnName, position: colTasks.length, tag_ids: tagIds })
     if (data) {
-      setTasks([...tasks, data])
+      // Upload files if any
+      let attachments = []
+      if (files.length > 0) {
+        try {
+          attachments = await api.upload(`/api/tasks/${data.id}/attachments`, files)
+        } catch (e) {
+          console.error('File upload failed:', e)
+        }
+      }
+      setTasks([...tasks, { ...data, attachments }])
       if (columnName === 'wip') {
         api.post('/api/webhooks/wip-signal', { task_id: data.id, title }).catch(() => {})
       }
