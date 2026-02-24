@@ -8,6 +8,7 @@ const COLUMNS = ['ideas', 'wip', 'done']
 
 export default function KanbanBoard({ tasks, tags, onDeleteTask, onUpdateTask, onMoveTask, onReorderTasks, onOpenCreateModal, onCreateTag, onAddTag, onRemoveTag }) {
   const [activeTask, setActiveTask] = useState(null)
+  const [originColumn, setOriginColumn] = useState(null)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   const tasksByColumn = {
@@ -17,9 +18,7 @@ export default function KanbanBoard({ tasks, tags, onDeleteTask, onUpdateTask, o
   }
 
   const findColumn = (id) => {
-    // Check if id is a column
     if (COLUMNS.includes(id)) return id
-    // Find which column contains this task
     for (const col of COLUMNS) {
       if (tasksByColumn[col].some(t => t.id === id)) return col
     }
@@ -29,37 +28,37 @@ export default function KanbanBoard({ tasks, tags, onDeleteTask, onUpdateTask, o
   const handleDragStart = (event) => {
     const task = tasks.find(t => t.id === event.active.id)
     setActiveTask(task || null)
+    setOriginColumn(task?.column_name || null)
   }
 
-  const handleDragOver = (event) => {
-    const { active, over } = event
-    if (!over) return
-
-    const activeCol = findColumn(active.id)
-    const overCol = COLUMNS.includes(over.id) ? over.id : findColumn(over.id)
-
-    if (!activeCol || !overCol || activeCol === overCol) return
-
-    // Move task to new column in UI immediately
-    onMoveTask(active.id, overCol)
+  const handleDragOver = () => {
+    // Don't move during drag — only on drop (prevents skipping columns)
   }
 
   const handleDragEnd = (event) => {
     const { active, over } = event
+    const draggedTask = activeTask
+    const startCol = originColumn
     setActiveTask(null)
-    if (!over) return
+    setOriginColumn(null)
+    if (!over || !draggedTask) return
 
-    const activeCol = findColumn(active.id)
     const overCol = COLUMNS.includes(over.id) ? over.id : findColumn(over.id)
+    if (!overCol) return
 
-    if (!activeCol || !overCol) return
+    // Cross-column move
+    if (startCol !== overCol) {
+      onMoveTask(active.id, overCol)
+      return
+    }
 
-    if (activeCol === overCol && active.id !== over.id) {
-      const colTasks = tasksByColumn[activeCol]
+    // Same-column reorder
+    if (active.id !== over.id) {
+      const colTasks = tasksByColumn[startCol]
       const oldIdx = colTasks.findIndex(t => t.id === active.id)
       const newIdx = colTasks.findIndex(t => t.id === over.id)
       if (oldIdx !== -1 && newIdx !== -1) {
-        onReorderTasks(activeCol, arrayMove(colTasks, oldIdx, newIdx))
+        onReorderTasks(startCol, arrayMove(colTasks, oldIdx, newIdx))
       }
     }
   }
