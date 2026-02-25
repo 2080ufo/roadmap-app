@@ -54,6 +54,7 @@ export default function KanbanCard({ task, tags: allTags = [], onDelete, onUpdat
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
   const [editDesc, setEditDesc] = useState(task.description || '')
+  const [editImportance, setEditImportance] = useState(task.importance || 'normal')
   const [attachments, setAttachments] = useState(task.attachments || [])
   const [showAttachments, setShowAttachments] = useState((task.attachments?.length || 0) > 0)
   const [uploading, setUploading] = useState(false)
@@ -119,6 +120,7 @@ export default function KanbanCard({ task, tags: allTags = [], onDelete, onUpdat
     const updates = {}
     if (editTitle.trim() && editTitle.trim() !== task.title) updates.title = editTitle.trim()
     if (editDesc.trim() !== (task.description || '')) updates.description = editDesc.trim() || null
+    if (editImportance !== (task.importance || 'normal')) updates.importance = editImportance
     if (Object.keys(updates).length) onUpdate(task.id, updates)
     setEditing(false)
   }
@@ -153,15 +155,40 @@ export default function KanbanCard({ task, tags: allTags = [], onDelete, onUpdat
             placeholder="Description (optional)"
             rows={3}
           />
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-text-muted">Priority:</span>
+            {[
+              { value: 'critical', label: '🔴', color: 'rgb(239 68 68)', bg: 'rgba(239,68,68,0.15)', border: 'rgba(239,68,68,0.3)' },
+              { value: 'normal', label: '🟡', color: 'rgb(245 158 11)', bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.3)' },
+              { value: 'low', label: '🟢', color: 'rgb(34 197 94)', bg: 'rgba(34,197,94,0.15)', border: 'rgba(34,197,94,0.3)' },
+            ].map(opt => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setEditImportance(opt.value)}
+                className="px-1.5 py-0.5 rounded-full text-[10px] transition-all"
+                style={{
+                  backgroundColor: editImportance === opt.value ? opt.bg : 'transparent',
+                  border: `1px solid ${editImportance === opt.value ? opt.border : 'var(--surface-600, #374151)'}`,
+                }}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
           <div className="flex gap-2">
             <button onClick={saveEdit} className="text-xs px-2 py-1 bg-accent-blue/10 border border-accent-blue/30 text-accent-blue rounded hover:bg-accent-blue/20 transition-all">Save</button>
-            <button onClick={() => { setEditTitle(task.title); setEditDesc(task.description || ''); setEditing(false) }} className="text-xs text-text-muted hover:text-text-secondary">Cancel</button>
+            <button onClick={() => { setEditTitle(task.title); setEditDesc(task.description || ''); setEditImportance(task.importance || 'normal'); setEditing(false) }} className="text-xs text-text-muted hover:text-text-secondary">Cancel</button>
           </div>
         </div>
       ) : (
         <>
           <div className="flex items-start justify-between gap-2">
-            <p className="text-sm text-text-primary leading-snug flex-1">{task.title}</p>
+            <div className="flex items-center gap-1.5 flex-1 min-w-0">
+              {task.importance === 'critical' && <span className="flex-shrink-0 w-2 h-2 rounded-full bg-red-500" title="Critical" />}
+              {task.importance === 'low' && <span className="flex-shrink-0 w-2 h-2 rounded-full bg-green-500/50" title="Low priority" />}
+              <p className="text-sm text-text-primary leading-snug">{task.title}</p>
+            </div>
             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all flex-shrink-0 mt-0.5">
               <button
                 onClick={(e) => { e.stopPropagation(); fileRef.current?.click() }}
@@ -171,7 +198,7 @@ export default function KanbanCard({ task, tags: allTags = [], onDelete, onUpdat
                 📎
               </button>
               <button
-                onClick={(e) => { e.stopPropagation(); setEditTitle(task.title); setEditDesc(task.description || ''); setEditing(true) }}
+                onClick={(e) => { e.stopPropagation(); setEditTitle(task.title); setEditDesc(task.description || ''); setEditImportance(task.importance || 'normal'); setEditing(true) }}
                 className="text-text-muted hover:text-accent-blue text-xs"
                 title="Edit"
               >

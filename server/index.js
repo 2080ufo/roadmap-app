@@ -221,10 +221,11 @@ app.get('/api/tasks', authMiddleware, async (req, res) => {
 
 app.post('/api/tasks', authMiddleware, async (req, res) => {
   try {
-    const { title, description, milestone_id, column_name, position, tag_ids } = req.body
+    const { title, description, milestone_id, column_name, position, tag_ids, importance } = req.body
+    const validImportance = ['critical', 'normal', 'low'].includes(importance) ? importance : 'normal'
     const { rows } = await pool.query(
-      'INSERT INTO tasks (user_id, title, description, milestone_id, column_name, position) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [req.user.id, title, description || null, milestone_id || null, column_name || 'ideas', position || 0]
+      'INSERT INTO tasks (user_id, title, description, milestone_id, column_name, position, importance) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [req.user.id, title, description || null, milestone_id || null, column_name || 'ideas', position || 0, validImportance]
     )
     const task = rows[0]
     // Attach tags
@@ -255,12 +256,13 @@ app.post('/api/tasks', authMiddleware, async (req, res) => {
 
 app.put('/api/tasks/:id', authMiddleware, async (req, res) => {
   try {
-    const { completed, title, description } = req.body
+    const { completed, title, description, importance } = req.body
     const completed_at = completed ? new Date().toISOString() : null
+    const validImportance = importance && ['critical', 'normal', 'low'].includes(importance) ? importance : null
     const { rows } = await pool.query(
-      `UPDATE tasks SET completed = COALESCE($1, completed), completed_at = $2, title = COALESCE($3, title), description = COALESCE($4, description)
-       WHERE id = $5 RETURNING *`,
-      [completed, completed_at, title, description, req.params.id]
+      `UPDATE tasks SET completed = COALESCE($1, completed), completed_at = $2, title = COALESCE($3, title), description = COALESCE($4, description), importance = COALESCE($5, importance)
+       WHERE id = $6 RETURNING *`,
+      [completed, completed_at, title, description, validImportance, req.params.id]
     )
     res.json(rows[0])
   } catch {

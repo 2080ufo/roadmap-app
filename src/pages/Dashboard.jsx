@@ -70,9 +70,9 @@ export default function Dashboard() {
     setModalOpen(true)
   }
 
-  const addTask = async (columnName, title, description, tagIds, files = []) => {
+  const addTask = async (columnName, title, description, tagIds, files = [], importance = 'normal') => {
     const colTasks = tasks.filter(t => t.column_name === columnName)
-    const data = await api.post('/api/tasks', { title, description: description || null, column_name: columnName, position: colTasks.length, tag_ids: tagIds })
+    const data = await api.post('/api/tasks', { title, description: description || null, column_name: columnName, position: colTasks.length, tag_ids: tagIds, importance })
     if (data) {
       // Upload files if any
       let attachments = []

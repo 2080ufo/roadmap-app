@@ -32,6 +32,7 @@ export default function CreateTaskModal({ isOpen, columnId, tags, onClose, onSub
   const [tagSearch, setTagSearch] = useState('')
   const [showTagDropdown, setShowTagDropdown] = useState(false)
   const [newTagColor, setNewTagColor] = useState(TAG_COLORS[0])
+  const [importance, setImportance] = useState('normal')
   const [files, setFiles] = useState([])
   const [uploading, setUploading] = useState(false)
   const inputRef = useRef(null)
@@ -42,6 +43,7 @@ export default function CreateTaskModal({ isOpen, columnId, tags, onClose, onSub
     if (isOpen) {
       setTitle('')
       setDescription('')
+      setImportance('normal')
       setSelectedTags([])
       setTagSearch('')
       setFiles([])
@@ -133,7 +135,7 @@ export default function CreateTaskModal({ isOpen, columnId, tags, onClose, onSub
     if (!title.trim()) return
     setUploading(true)
     try {
-      await onSubmit(columnId, title.trim(), description.trim(), selectedTags.map(t => t.id), files)
+      await onSubmit(columnId, title.trim(), description.trim(), selectedTags.map(t => t.id), files, importance)
       onClose()
     } catch (err) {
       console.error('Failed to create task:', err)
@@ -223,6 +225,32 @@ export default function CreateTaskModal({ isOpen, columnId, tags, onClose, onSub
             rows={4}
             className="w-full mt-3 px-4 py-3 bg-surface-700 border border-surface-600 rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-blue/50 text-sm resize-none"
           />
+
+          {/* Importance selector */}
+          <div className="flex items-center gap-2 mt-3">
+            <span className="text-xs text-text-muted">Priority:</span>
+            <div className="flex gap-1.5">
+              {[
+                { value: 'critical', label: '🔴 Critical', color: 'rgb(239 68 68)', bg: 'rgba(239,68,68,0.1)', border: 'rgba(239,68,68,0.3)' },
+                { value: 'normal', label: '🟡 Normal', color: 'rgb(245 158 11)', bg: 'rgba(245,158,11,0.1)', border: 'rgba(245,158,11,0.3)' },
+                { value: 'low', label: '🟢 Low', color: 'rgb(34 197 94)', bg: 'rgba(34,197,94,0.1)', border: 'rgba(34,197,94,0.3)' },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setImportance(opt.value)}
+                  className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
+                  style={{
+                    backgroundColor: importance === opt.value ? opt.bg : 'transparent',
+                    color: importance === opt.value ? opt.color : 'var(--text-muted, #6b7280)',
+                    border: `1px solid ${importance === opt.value ? opt.border : 'var(--surface-600, #374151)'}`,
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* File attachments */}
           <div
