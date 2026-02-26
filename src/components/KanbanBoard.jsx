@@ -1,4 +1,4 @@
-import { DndContext, closestCorners, PointerSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core'
+import { DndContext, closestCorners, PointerSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core'
 import { arrayMove } from '@dnd-kit/sortable'
 import { useState } from 'react'
 import KanbanColumn from './KanbanColumn'
@@ -9,7 +9,11 @@ const COLUMNS = ['ideas', 'wip', 'done']
 export default function KanbanBoard({ tasks, tags, onDeleteTask, onUpdateTask, onMoveTask, onReorderTasks, onOpenCreateModal, onCreateTag, onAddTag, onRemoveTag }) {
   const [activeTask, setActiveTask] = useState(null)
   const [originColumn, setOriginColumn] = useState(null)
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(KeyboardSensor)
+  )
 
   const tasksByColumn = {
     ideas: tasks.filter(t => t.column_name === 'ideas'),

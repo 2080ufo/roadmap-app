@@ -134,9 +134,6 @@ export default function KanbanCard({ task, tags: allTags = [], onDelete, onUpdat
       className={`bg-surface-700 border rounded-lg p-3 cursor-grab active:cursor-grabbing hover:border-text-muted/30 transition-all group ${
         dragOver ? 'border-accent-blue border-dashed' : 'border-surface-600'
       }`}
-      onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={handleDrop}
     >
       {editing ? (
         <div className="space-y-2">
@@ -317,7 +314,12 @@ export default function KanbanCard({ task, tags: allTags = [], onDelete, onUpdat
 
       {/* Attachment list */}
       {showAttachments && (
-        <div className="mt-2 space-y-1">
+        <div
+          className="mt-2 space-y-1"
+          onDragOver={e => { e.preventDefault(); e.stopPropagation(); setDragOver(true) }}
+          onDragLeave={(e) => { e.stopPropagation(); setDragOver(false) }}
+          onDrop={(e) => { e.stopPropagation(); handleDrop(e) }}
+        >
           {attachments.map(att => (
             <AttachmentItem key={att.id} att={att} onDelete={handleDeleteAttachment} />
           ))}
