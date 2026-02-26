@@ -50,7 +50,7 @@ function AttachmentItem({ att, onDelete }) {
 
 const TAG_COLORS = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#8b5cf6','#ec4899','#06b6d4','#f97316','#14b8a6','#6366f1']
 
-export default function KanbanCard({ task, tags: allTags = [], onDelete, onUpdate, onCreateTag, onAddTag, onRemoveTag }) {
+function KanbanCardInner({ task, tags: allTags = [], onDelete, onUpdate, onCreateTag, onAddTag, onRemoveTag, sortableProps = {} }) {
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
   const [editDesc, setEditDesc] = useState(task.description || '')
@@ -63,15 +63,11 @@ export default function KanbanCard({ task, tags: allTags = [], onDelete, onUpdat
   const [tagSearch, setTagSearch] = useState('')
   const fileRef = useRef(null)
 
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: task.id,
-    data: { type: 'task', task },
-    disabled: editing
-  })
+  const { attributes = {}, listeners = {}, setNodeRef, transform, transition, isDragging } = sortableProps
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: CSS.Transform.toString(transform || null),
+    transition: transition || undefined,
     opacity: isDragging ? 0.4 : 1,
   }
 
@@ -341,4 +337,21 @@ export default function KanbanCard({ task, tags: allTags = [], onDelete, onUpdat
       {!editing && age && <p className="text-[11px] text-text-muted mt-1.5">{age}</p>}
     </div>
   )
+}
+
+// Sortable wrapper — uses the hook, passes props down
+function SortableKanbanCard({ task, ...props }) {
+  const sortableProps = useSortable({
+    id: task.id,
+    data: { type: 'task', task },
+  })
+  return <KanbanCardInner task={task} {...props} sortableProps={sortableProps} />
+}
+
+// Exported component — isDragOverlay skips sortable hook
+export default function KanbanCard({ isDragOverlay, ...props }) {
+  if (isDragOverlay) {
+    return <KanbanCardInner {...props} />
+  }
+  return <SortableKanbanCard {...props} />
 }
